@@ -1,0 +1,12 @@
+__pycache__/
+Documentation
+R-4.6.1
+Useless
+venv
+Results/Figures
+Results/Python_results
+Results/TimeSeries_results
+Comparison/comparison.py
+Comparison/tfm_predictions.npy
+Comparison/transformer_predictions.npy
+Life_tables/Life_tables_data/weekly_population_departements.parquet
