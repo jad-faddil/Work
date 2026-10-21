@@ -10,19 +10,21 @@ deaths = pd.read_parquet("Life_tables/Life_tables_data/deaths_weekly.parquet")
 
 # Aggregate deaths by year, week and age
 deaths = deaths.groupby(["Year", "Week", "Age"], as_index=False)["Deaths"].sum()
+training_years = range(2019,2025)
+training_weeks = range(22, 37)
 
 # Build dataset
 data = population.merge(deaths, on=["Year", "Week", "Age"], how="left")
 data["Deaths"] = data["Deaths"].fillna(0).astype(int)
 data["Population"] = data["Total"].round().astype(int)
-data = data[data["Age"].between(20, 85) & data["Week"].between(22, 36)].copy()
+data = data[data["Age"].between(20, 85) & data["Week"].isin(training_weeks)].copy()
 
 # Baseline mortality rate by age, estimated over 2019–2024
-base = data[data["Year"].between(2019, 2024)].groupby("Age").agg(Deaths=("Deaths", "sum"), Population=("Population", "sum"))
+base = data[data["Year"].isin(training_years)].groupby("Age").agg(Deaths=("Deaths", "sum"), Population=("Population", "sum"))
 qbase = base["Deaths"] / base["Population"]
 
 # Fit seasonal GLM over 2014–2024
-train = data[data["Year"].between(2019, 2024)].copy()
+train = data[data["Year"].isin(training_years)].copy()
 train["qbase"] = train["Age"].map(qbase)
 train["Week"] = train["Week"].astype("int64")
 
@@ -34,9 +36,6 @@ X_weeks = dmatrix("0 + C(Week)", weeks, return_type="dataframe")
 X_weeks = X_weeks.reindex(columns=seasonal_model.params.index, fill_value=0)
 
 seasonal_multiplier = pd.Series(np.exp(X_weeks.to_numpy() @ seasonal_model.params.to_numpy()), index=weeks["Week"], name="Seasonal_multiplier")
-
-print("Weekly seasonal multipliers:")
-print(seasonal_multiplier)
 
 # Evaluate 2025 and 2026
 for year in [2025, 2026]:

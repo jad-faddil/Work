@@ -59,16 +59,12 @@ age_results["Excess_baseline"] = age_results["Observed"] - age_results["Expected
 age_results["Excess_seasonal"] = age_results["Observed"] - age_results["Expected_seasonal"]
 
 # Weekly mortality residuals for 2026, weeks 22–35
-weekly = test[test["Year"].eq(2026) & test["Week"].between(22, 35)].groupby("Week").agg(
-    Observed=("Deaths", "sum"), Expected=("Expected_seasonal", "sum")
-).reset_index()
+weekly = test[test["Year"].eq(2026) & test["Week"].between(22, 35)].groupby("Week").agg(Observed=("Deaths", "sum"), Expected=("Expected_seasonal", "sum")).reset_index()
 weekly["Difference"] = weekly["Observed"] - weekly["Expected"]
 weekly["Difference_pct"] = 100 * weekly["Difference"] / weekly["Expected"]
 
 # National weekly weather averages
-weather_2026 = weather[weather["Year"].eq(2026) & weather["Week"].between(22, 35)].groupby("Week").agg(
-    TN=("TN", "mean"), TX=("TX", "mean"), TM=("TM", "mean")
-).reset_index()
+weather_2026 = weather[weather["Year"].eq(2026) & weather["Week"].between(22, 35)].groupby("Week").agg(TN=("TN", "mean"), TX=("TX", "mean"), TM=("TM", "mean")).reset_index()
 
 weekly = weekly.merge(weather_2026, on="Week", how="left")
 print(weekly.sort_values("Difference", ascending=False).to_string(index=False, float_format=lambda x: f"{x:.1f}"))
@@ -82,11 +78,7 @@ selected_weeks = weekly_diff.nlargest(3, "Difference").index
 
 ages = [25, 40, 55, 70, 80]
 
-age_distribution = test_2026[
-    test_2026["Week"].isin(selected_weeks) & test_2026["Age"].isin(ages)
-].groupby(["Week", "Age"]).agg(
-    Observed=("Deaths", "sum"), Expected=("Expected_seasonal", "sum")
-).reset_index()
+age_distribution = test_2026[test_2026["Week"].isin(selected_weeks) & test_2026["Age"].isin(ages)].groupby(["Week", "Age"]).agg(Observed=("Deaths", "sum"), Expected=("Expected_seasonal", "sum")).reset_index()
 
 age_distribution["Difference"] = age_distribution["Observed"] - age_distribution["Expected"]
 age_distribution["Difference_pct"] = 100 * age_distribution["Difference"] / age_distribution["Expected"]
