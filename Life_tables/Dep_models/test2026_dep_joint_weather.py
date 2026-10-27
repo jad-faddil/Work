@@ -32,7 +32,7 @@ data = data[data["Population"] > 0].copy()
 
 formula = (f"Deaths ~ 0 + C(Age) + C(Week) + I(Year - {year_center:g}) + " + " + ".join(anom_cols))
 
-summary, weekly_results, coefficients = [], [], []
+summary, weekly_results, age_results, coefficients = [], [], [], []
 
 for dep, d in data.groupby("Departement"):
     train = d[d["Year"].isin(training_years)].copy()
@@ -53,6 +53,7 @@ for dep, d in data.groupby("Departement"):
     normal_test[anom_cols] = 0
     test["Expected_normal"] = model.predict(normal_test, offset=np.log(normal_test["Population"]))
     test["Expected_weather"] = model.predict(test, offset=np.log(test["Population"]))
+    age_results.append(test[["Departement", "Year", "Week", "Age", "Population", "Deaths", "Expected_weather"]].copy())
 
     trend_coef = model.params[f"I(Year - {year_center:g})"]
     coefficients.append({"Departement": dep, "Term": "Annual_trend", "Coefficient": trend_coef, "Multiplier": np.exp(trend_coef)})
@@ -74,15 +75,10 @@ for dep, d in data.groupby("Departement"):
     weekly["Weather_multiplier"] = weekly["Joint_observed_weather"] / weekly["Joint_normal_weather"]
     weekly_results.append(weekly)
 
-summary = pd.DataFrame(summary)
+age_results = pd.concat(age_results, ignore_index=True)
+age_results.to_parquet("Life_tables/Life_tables_data/dep_glm_age_predictions.parquet", index=False)
+
 weekly_results = pd.concat(weekly_results, ignore_index=True)
-coefficients = pd.DataFrame(coefficients)
+weekly_results.to_parquet("Life_tables/Life_tables_data/dep_glm_predictions.parquet", index=False)
 
-annual = summary.groupby("Year", as_index=False).agg(Observed=("Observed", "sum"), Joint_normal_weather=("Joint_normal_weather", "sum"), Joint_observed_weather=("Joint_observed_weather", "sum"))
-annual["Bias_normal_pct"] = 100 * (annual["Observed"] / annual["Joint_normal_weather"] - 1)
-annual["Bias_weather_pct"] = 100 * (annual["Observed"] / annual["Joint_observed_weather"] - 1)
-
-print("\nNational totals from departmental models:")
-print(annual.to_string(index=False, float_format=lambda x: f"{x:,.2f}"))
-print("\nMean departmental bias (%):")
-print(summary.groupby("Year")[["Bias_normal_pct", "Bias_weather_pct"]].mean().round(2))
+print("Saved files")

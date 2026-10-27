@@ -14,3 +14,5 @@ Life_tables/Life_tables_data/national_mortality_model.pkl
 Life_tables/Life_tables_data/national_mortality_predictions.parquet
 Life_tables/Life_tables_data/brass_coefficients.parquet
 Life_tables/Life_tables_data/brass_mortality_predictions.parquet
+Life_tables/Life_tables_data/dep_glm_predictions.parquet
+Life_tables/Life_tables_data/dep_glm_age_predictions.parquet
