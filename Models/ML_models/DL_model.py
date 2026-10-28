@@ -131,7 +131,7 @@ class MortalityDataset(Dataset):
         self.data = data.reset_index(drop=True)
         self.data["week"] = self.data["date"].dt.isocalendar().week.astype(float)
         self.temporal = torch.tensor(self.data[["year", "week"]].values, dtype=torch.float32)
-        self.temperature = torch.tensor(self.data[["TN", "TM", "TX", "TN_heat", "TX_heat"]].values, dtype=torch.float32)
+        self.temperature = torch.tensor(self.data[["TN_min", "TN_min", "TX_max", "TX_max"]].values, dtype=torch.float32)
         self.sex = torch.tensor(self.data["sex"].map({"F": 0, "M": 1}).values, dtype=torch.long)
         self.age = torch.tensor(self.data["age_group"].map({age: i for i, age in enumerate(["20-24","25-29","30-34","35-39","40-44","45-49","50-54","55-59","60-64"])}).values, dtype=torch.long)
         self.departement = torch.tensor(self.data["departement"].astype(int).values - 1, dtype=torch.long)
@@ -149,7 +149,7 @@ class NonePoissonTokenizer(nn.Module):
         super().__init__()
         self.d_embed = d_embed
         self.temporal = nn.Linear(2, self.d_embed)
-        self.temperature = nn.Linear(5, self.d_embed)
+        self.temperature = nn.Linear(4, self.d_embed)
         self.sex = nn.Embedding(2, self.d_embed)
         self.age = nn.Embedding(9, self.d_embed)
         self.departement = nn.Embedding(95, self.d_embed)

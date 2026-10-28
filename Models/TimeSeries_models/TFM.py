@@ -5,22 +5,18 @@ import matplotlib.pyplot as plt
 
 # Load granular mortality data
 df = pd.read_parquet("Data/data_weekly.parquet")
+df = df.rename(columns={"week":"date"})
 df["date"] = pd.to_datetime(df["date"])
 
 # Aggregate over departments
-mortality = df.groupby(["date", "sex", "age_group"], as_index=False).agg(
-    deaths=("deaths", "sum"), exposure=("exposure", "sum"))
-
+mortality = df.groupby(["date", "sex", "age_group"], as_index=False).agg(deaths=("deaths", "sum"), exposure=("exposure", "sum"))
 mortality["mortality_rate"] = mortality["deaths"] / mortality["exposure"]
 ts = mortality.pivot(index="date", columns=["sex", "age_group"], values="mortality_rate").sort_index()
 
 # Exposure-weighted weekly TM for each sex × age series
-df["TM_weighted"] = df["TM"] * df["exposure"]
+df["TM_weighted"] = df["TX_mean"] * df["exposure"]
 
-temp = df.groupby(["date", "sex", "age_group"], as_index=False).agg(
-    TM_weighted=("TM_weighted", "sum"),
-    exposure=("exposure", "sum")
-)
+temp = df.groupby(["date", "sex", "age_group"], as_index=False).agg(TM_weighted=("TM_weighted", "sum"), exposure=("exposure", "sum"))
 temp["TM"] = temp["TM_weighted"] / temp["exposure"]
 
 tm = temp.pivot(index="date", columns=["sex", "age_group"], values="TM").reindex(ts.index)
@@ -34,7 +30,7 @@ test = ts.loc[ts.index >= "2023-01-01"]
 tm_train = tm.loc[train.index]
 tm_test = tm.loc[test.index]
 context = train.values.T.astype(np.float32)
-horizon = 105
+horizon = 104
 
 tm_context = tm_train.values.T.astype(np.float32)
 tm_future = tm_test.iloc[:horizon].values.T.astype(np.float32)

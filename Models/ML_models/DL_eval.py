@@ -20,6 +20,8 @@ batch_size = 128
 print("Loading data ...")
 data = pd.read_parquet("Data/data_weekly.parquet")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+data = data.rename(columns={"week":"date"})
+data["year"] = data["date"].dt.year
 
 print("Splitting data ...")
 train = data[data["year"] <= 2019].copy()

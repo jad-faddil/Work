@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 # Load
 data = pd.read_parquet("Data/data_weekly.parquet")
 
+data["year"] = data["week"].dt.year
+data = data.rename(columns={"week":"date"})
 for col in ["sex", "age_group", "departement"]:
     data[col] = data[col].astype("category")
     
@@ -16,7 +18,7 @@ test = data[data["year"].between(2023, 2024)]
 
 # Features
 features_base = ["sex", "age_group", "departement", "year", "exposure"]
-features_temp = features_base + ["TN", "TM", "TX", "TX_heat", "TN_heat", "heatdays_count"]
+features_temp = features_base + ["TN_min", "TN_max", "TX_min", "TX_max", "TN_mean", "TX_mean"]
 
 X_train_base, X_valid_base, X_test_base = train[features_base], valid[features_base], test[features_base]
 X_train_temp, X_valid_temp, X_test_temp = train[features_temp], valid[features_temp], test[features_temp]

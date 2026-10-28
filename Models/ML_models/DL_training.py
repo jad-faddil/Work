@@ -23,6 +23,8 @@ lr = 0.001
 # Data
 print("Loading data ...")
 data = pd.read_parquet("Data/data_weekly.parquet")
+data = data.rename(columns={"week":"date"})
+data["year"] = data["date"].dt.year
 
 print("Splitting data ...")
 train = data[data["year"] <= 2019].copy()
@@ -38,7 +40,7 @@ valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 # Model
-model = Model(n_layers, d_embed, n_heads, d_ff, act_fun, d_out, NonePoissonTokenizer).to(device)
+model = Model(n_layers, d_embed, n_heads, d_ff, act_fun, d_out, NonePoissonBaseTokenizer).to(device)
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 loss_fn = F.mse_loss
 
@@ -65,7 +67,7 @@ for step in range(n_steps):
 
     xt, xtemp, sex, age, dep, exposure, deaths = [x.to(device) for x in batch]
     optimizer.zero_grad()
-    pred = model(xt, xtemp, sex, age, dep, exposure)
+    pred = model(xt, sex, age, dep, exposure)
     loss = loss_fn(pred.squeeze(-1), deaths)
     loss.backward()
     optimizer.step()
@@ -77,7 +79,7 @@ for step in range(n_steps):
         with torch.no_grad():
             for batch in valid_loader:
                 xt, xtemp, sex, age, dep, exposure, deaths = [x.to(device) for x in batch]
-                pred = model(xt, xtemp, sex, age, dep, exposure)
+                pred = model(xt, sex, age, dep, exposure)
                 valid_loss += loss_fn(pred.squeeze(-1), deaths).item()
 
         valid_loss /= len(valid_loader)
@@ -87,7 +89,7 @@ for step in range(n_steps):
         if valid_loss < best_loss:
             best_loss = valid_loss
             counter = 0
-            torch.save(model.state_dict(), "Results/Python_results/transformer_weekly_temp.pt")
+            torch.save(model.state_dict(), "Results/Python_results/transformer_weekly_base.pt")
         else:
             counter += 1
             if counter >= patience:
