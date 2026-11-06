@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error, mean_squared_error
+import warnings
+warnings.filterwarnings('ignore')
 
 base = "Life_tables/Life_tables_data/"
 
@@ -84,9 +86,9 @@ h2h = dep_glm_m[["Departement", "Observed", "RMSE_weekly", "MAE_weekly", "Bias_p
 ).merge(dep_nat_m[["Departement", "RMSE_weekly", "MAE_weekly", "Bias_pct"]].rename(columns={"RMSE_weekly": "RMSE_Nat", "MAE_weekly": "MAE_Nat", "Bias_pct": "Bias_pct_Nat"}), on="Departement")
 
 print("\n=== 3. DEPARTMENTAL WIN COUNT (LOWEST METRIC) ===")
-rmse_wins = h2h[["RMSE_Nat", "RMSE_Brass", "RMSE_GLM"]].idxmin(axis=1).value_counts()
-mae_wins = h2h[["MAE_Nat", "MAE_Brass", "MAE_GLM"]].idxmin(axis=1).value_counts()
-bias_wins = h2h[["Bias_pct_Nat", "Bias_pct_Brass", "Bias_pct_GLM"]].abs().idxmin(axis=1).value_counts()
+rmse_wins = h2h[["RMSE_Brass", "RMSE_GLM"]].idxmin(axis=1).value_counts()
+mae_wins = h2h[["MAE_Brass", "MAE_GLM"]].idxmin(axis=1).value_counts()
+bias_wins = h2h[["Bias_pct_Brass", "Bias_pct_GLM"]].abs().idxmin(axis=1).value_counts()
 
 print("Best Weekly RMSE:\n", rmse_wins.to_string())
 print("\nBest Weekly MAE:\n", mae_wins.to_string())

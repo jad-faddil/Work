@@ -5,6 +5,7 @@ import statsmodels.formula.api as smf
 
 training_years = range(2019, 2025)
 training_weeks = range(22, 37)
+training_ages = range(20, 86)
 test_years = [2025, 2026]
 weather_cols = ["TN", "TX", "UN", "UX"]
 anom_cols = [f"{c}_anom_z" for c in weather_cols]
@@ -18,8 +19,8 @@ weather = pd.read_parquet("Life_tables/Life_tables_data/weekly_weather.parquet")
 for df in (population, deaths, weather):
     df["Departement"] = df["Departement"].astype(str).str.replace(r"\.0$", "", regex=True).str.zfill(2)
 
-population = population[population["Year"].isin(model_years) & population["Week"].isin(training_weeks) & population["Age"].between(20, 85)].copy()
-deaths = deaths[deaths["Year"].isin(model_years) & deaths["Week"].isin(training_weeks) & deaths["Age"].between(20, 85)]
+population = population[population["Year"].isin(model_years) & population["Week"].isin(training_weeks) & population["Age"].isin(training_ages)].copy()
+deaths = deaths[deaths["Year"].isin(model_years) & deaths["Week"].isin(training_weeks) & deaths["Age"].isin(training_ages)]
 deaths = deaths.groupby(["Year", "Week", "Age", "Departement"], as_index=False)["Deaths"].sum()
 weather = weather[weather["Year"].isin(model_years) & weather["Week"].isin(training_weeks)]
 weather = weather.groupby(["Departement", "Year", "Week"], as_index=False)[weather_cols].mean()

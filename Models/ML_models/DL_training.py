@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch_directml
 import numpy as np
 import pandas as pd
 from DL_model import Model, MortalityDataset, NonePoissonTokenizer, NonePoissonBaseTokenizer
@@ -8,7 +9,16 @@ import torch.nn.functional as F
 
 # Hyperparameters
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+"""try:
+    import torch_directml
+    # Uses AMD GPU via DirectML if available
+    device = torch_directml.device()
+    print("Device: DirectML (AMD GPU)")
+except ImportError:
+    device = torch.device("cpu")
+    print("Device: CPU")"""
+
+device = torch.device("cpu")
 n_layers = 4
 d_embed = 64
 n_heads = 8

@@ -6,6 +6,7 @@ import statsmodels.formula.api as smf
 base = "Life_tables/Life_tables_data/"
 training_years = range(2019, 2025)
 test_years = [2025, 2026]
+training_ages = range(20,87)
 model_years = [*training_years, *test_years]
 training_weeks = range(22, 37)
 
@@ -24,9 +25,9 @@ for df in (pop_dep, deaths, weather):
     df["Departement"] = df["Departement"].astype(str).str.replace(r"\.0$", "", regex=True).str.zfill(2)
 
 # Filter to relevant years, weeks, and ages (20-86 needed to get qx at age 85)
-pop_nat = pop_nat[pop_nat["Year"].isin(model_years) & pop_nat["Week"].isin(training_weeks) & pop_nat["Age"].between(20, 86)].copy()
-pop_dep = pop_dep[pop_dep["Year"].isin(model_years) & pop_dep["Week"].isin(training_weeks) & pop_dep["Age"].between(20, 86)].copy()
-deaths = deaths[deaths["Year"].isin(model_years) & deaths["Week"].isin(training_weeks) & deaths["Age"].between(20, 86)]
+pop_nat = pop_nat[pop_nat["Year"].isin(model_years) & pop_nat["Week"].isin(training_weeks) & pop_nat["Age"].isin(training_ages)].copy()
+pop_dep = pop_dep[pop_dep["Year"].isin(model_years) & pop_dep["Week"].isin(training_weeks) & pop_dep["Age"].isin(training_ages)].copy()
+deaths = deaths[deaths["Year"].isin(model_years) & deaths["Week"].isin(training_weeks) & deaths["Age"].isin(training_ages)]
 deaths = deaths.groupby(["Year", "Week", "Age", "Departement"], as_index=False)["Deaths"].sum()
 weather_nat = weather[weather["Year"].isin(model_years) & weather["Week"].isin(training_weeks)].groupby(["Year", "Week"], as_index=False)[weather_cols].mean()
 
@@ -63,7 +64,7 @@ dep_life["qx"] = (dep_life["Deaths"] / dep_life["Population"].replace(0, np.nan)
 dep_life["lx_dep"] = dep_life.groupby("Departement")["qx"].transform(lambda q: (1 - q).cumprod().shift(1, fill_value=1))
 
 brass = dep_life.merge(nat_life[["Age", "lx_nat"]], on="Age", how="inner")
-brass = brass[brass["Age"].between(21, 86)].copy()
+brass = brass[brass["Age"].isin(training_ages[1:])].copy()
 brass["x"] = np.log(brass["lx_nat"].clip(eps, 1 - eps) / (1 - brass["lx_nat"].clip(eps, 1 - eps)))
 brass["y"] = np.log(brass["lx_dep"].clip(eps, 1 - eps) / (1 - brass["lx_dep"].clip(eps, 1 - eps)))
 
@@ -102,8 +103,8 @@ dep_test["qx_dep"] = 1 - dep_test["lx_next"] / dep_test["lx_dep"]
 dep_test["Expected_brass"] = dep_test["Population"] * dep_test["qx_dep"]
 
 # 6. Filter to evaluation ages (20-85) and save predictions
-nat_predictions = nat_test[nat_test["Age"].between(20, 85)].copy()
-brass_predictions = dep_test[dep_test["Age"].between(20, 85)].copy()
+nat_predictions = nat_test[nat_test["Age"].isin(training_ages[:-1])].copy()
+brass_predictions = dep_test[dep_test["Age"].isin(training_ages[:-1])].copy()
 
 nat_predictions.to_parquet(base + "national_mortality_predictions.parquet", index=False)
 brass_predictions.to_parquet(base + "brass_mortality_predictions.parquet", index=False)
