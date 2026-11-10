@@ -8,7 +8,7 @@ training_weeks = range(22, 37)
 training_ages = range(20, 86)
 test_years = [2025, 2026]
 weather_cols = ["TN", "TX", "UN", "UX"]
-anom_cols = [f"{c}_anom_z" for c in weather_cols]
+diff_cols = [f"{c}_diff" for c in weather_cols]
 year_center = np.mean(list(training_years))
 model_years = [*training_years, *test_years]
 
@@ -31,7 +31,7 @@ data["Deaths"] = data["Deaths"].fillna(0)
 data["Population"] = data["Total"].round().astype(int)
 data = data[data["Population"] > 0].copy()
 
-formula = (f"Deaths ~ 0 + C(Age) + C(Week) + I(Year - {year_center:g}) + " + " + ".join(anom_cols))
+formula = (f"Deaths ~ 0 + C(Age) + C(Week) + I(Year - {year_center:g}) + " + " + ".join(diff_cols))
 
 summary, weekly_results, age_results, coefficients = [], [], [], []
 
@@ -45,35 +45,35 @@ for dep, d in data.groupby("Departement"):
     stds = weather_ref.groupby("Week")[weather_cols].std().replace(0, np.nan)
 
     for c in weather_cols:
-        train[f"{c}_anom_z"] = (train[c] - train["Week"].map(means[c])) / train["Week"].map(stds[c])
-        test[f"{c}_anom_z"] = (test[c] - test["Week"].map(means[c])) / test["Week"].map(stds[c])
+        train[f"{c}_diff"] = (train[c] - train["Week"].map(means[c])) / train["Week"].map(stds[c])
+        test[f"{c}_diff"] = (test[c] - test["Week"].map(means[c])) / test["Week"].map(stds[c])
 
     model = smf.glm(formula, data=train, family=sm.families.Poisson(), offset=np.log(train["Population"])).fit()
 
     normal_test = test.copy()
-    normal_test[anom_cols] = 0
+    normal_test[diff_cols] = 0
     test["Expected_normal"] = model.predict(normal_test, offset=np.log(normal_test["Population"]))
     test["Expected_weather"] = model.predict(test, offset=np.log(test["Population"]))
-    age_results.append(test[["Departement", "Year", "Week", "Age", "Population", "Deaths", "Expected_weather"]].copy())
+    age_results.append(test[["Departement", "Year", "Week", "Age", "Population", "Deaths", "Expected_normal", "Expected_weather"]].copy())
 
     trend_coef = model.params[f"I(Year - {year_center:g})"]
     coefficients.append({"Departement": dep, "Term": "Annual_trend", "Coefficient": trend_coef, "Multiplier": np.exp(trend_coef)})
-    coefficients.extend({"Departement": dep, "Term": c, "Coefficient": model.params[c], "Multiplier": np.exp(model.params[c])} for c in anom_cols)
+    coefficients.extend({"Departement": dep, "Term": c, "Coefficient": model.params[c], "Multiplier": np.exp(model.params[c])} for c in diff_cols)
 
     for year, t in test.groupby("Year"):
         obs, normal, actual = t["Deaths"].sum(), t["Expected_normal"].sum(), t["Expected_weather"].sum()
         summary.append({
             "Departement": dep, "Year": year, "Observed": obs,
-            "Joint_normal_weather": normal, "Joint_observed_weather": actual,
+            "Normal_weather": normal, "Observed_weather": actual,
             "Bias_normal_pct": 100 * (obs / normal - 1),
             "Bias_weather_pct": 100 * (obs / actual - 1),
             "Weather_multiplier": actual / normal,
             "Annual_trend_multiplier": np.exp(trend_coef)
         })
 
-    weekly = test.groupby(["Year", "Week"], as_index=False).agg(Observed=("Deaths", "sum"), Joint_normal_weather=("Expected_normal", "sum"), Joint_observed_weather=("Expected_weather", "sum"))
+    weekly = test.groupby(["Year", "Week"], as_index=False).agg(Observed=("Deaths", "sum"), Expected_deps_normal=("Expected_normal", "sum"), Expected_deps=("Expected_weather", "sum"))
     weekly["Departement"] = dep
-    weekly["Weather_multiplier"] = weekly["Joint_observed_weather"] / weekly["Joint_normal_weather"]
+    weekly["Weather_multiplier"] = weekly["Expected_deps"] / weekly["Expected_deps_normal"]
     weekly_results.append(weekly)
 
 age_results = pd.concat(age_results, ignore_index=True)
@@ -81,5 +81,5 @@ age_results.to_parquet("Life_tables/Life_tables_data/dep_glm_age_predictions.par
 
 weekly_results = pd.concat(weekly_results, ignore_index=True)
 weekly_results.to_parquet("Life_tables/Life_tables_data/dep_glm_predictions.parquet", index=False)
-
+print(weekly_results)
 print("Saved files")

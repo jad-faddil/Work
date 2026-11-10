@@ -10,7 +10,6 @@ Comparison/comparison.py
 Comparison/tfm_predictions.npy
 Comparison/transformer_predictions.npy
 Life_tables/Life_tables_data/weekly_population_departements.parquet
-Life_tables/Life_tables_data/national_mortality_model.pkl
 Life_tables/Life_tables_data/national_mortality_predictions.parquet
 Life_tables/Life_tables_data/brass_coefficients.parquet
 Life_tables/Life_tables_data/brass_mortality_predictions.parquet

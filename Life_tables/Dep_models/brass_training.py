@@ -11,7 +11,7 @@ model_years = [*training_years, *test_years]
 training_weeks = range(22, 37)
 
 weather_cols = ["TN", "TM", "TX", "UN", "UM", "UX"]
-anom_cols = [f"{c}_anom_z" for c in weather_cols]
+diff_cols = [f"{c}_diff" for c in weather_cols]
 year_center = np.mean(list(training_years))
 eps = 1e-8
 
@@ -43,13 +43,12 @@ means = weather_train.groupby("Week")[weather_cols].mean()
 stds = weather_train.groupby("Week")[weather_cols].std().replace(0, np.nan)
 
 for c in weather_cols:
-    nat[f"{c}_anom_z"] = (nat[c] - nat["Week"].map(means[c])) / nat["Week"].map(stds[c])
+    nat[f"{c}_diff"] = (nat[c] - nat["Week"].map(means[c])) / nat["Week"].map(stds[c])
 
 # 3. Fit National GLM on training years
 nat_train = nat[nat["Year"].isin(training_years)].copy()
-formula = f"Deaths ~ 0 + C(Age) + C(Week) + I(Year - {year_center:g}) + " + " + ".join(anom_cols)
+formula = f"Deaths ~ 0 + C(Age) + C(Week) + I(Year - {year_center:g}) + " + " + ".join(diff_cols)
 national_model = smf.glm(formula, data=nat_train, family=sm.families.Poisson(), offset=np.log(nat_train["Population"])).fit()
-national_model.save(base + "national_mortality_model.pkl")
 
 # 4. Fit Brass coefficients on pooled training life tables
 nat_life = nat_train.groupby("Age", as_index=False).agg(Population=("Population", "sum"), Deaths=("Deaths", "sum")).sort_values("Age")
@@ -102,7 +101,37 @@ dep_test["lx_next"] = dep_test.groupby(["Departement", "Year", "Week"])["lx_dep"
 dep_test["qx_dep"] = 1 - dep_test["lx_next"] / dep_test["lx_dep"]
 dep_test["Expected_brass"] = dep_test["Population"] * dep_test["qx_dep"]
 
-# 6. Filter to evaluation ages (20-85) and save predictions
+# 6. Predict in case of normal weather
+nat_test_normal = nat[nat["Year"].isin(test_years)].copy()
+nat_test_normal[diff_cols] = 0
+nat_test_normal["Expected_national_normal"] = national_model.predict(nat_test_normal, offset=np.log(nat_test_normal["Population"]))
+nat_test_normal["qx_nat"] = (nat_test_normal["Expected_national_normal"] / nat_test_normal["Population"]).clip(0, 1)
+nat_test_normal = nat_test_normal.sort_values(["Year", "Week", "Age"])
+nat_test_normal["lx_nat"] = nat_test_normal.groupby(["Year", "Week"])["qx_nat"].transform(lambda q: (1 - q).cumprod().shift(1, fill_value=1))
+
+dep_test_normal = pop_dep[pop_dep["Year"].isin(test_years)][["Year", "Week", "Age", "Departement", "Total"]].rename(columns={"Total": "Population"})
+dep_test_normal = (
+    dep_test_normal.merge(nat_test_normal[["Year", "Week", "Age", "lx_nat"]], on=["Year", "Week", "Age"], how="left")
+    .merge(brass_params[["Departement", "alpha", "beta"]], on="Departement", how="left")
+    .merge(deaths[deaths["Year"].isin(test_years)], on=["Year", "Week", "Age", "Departement"], how="left")
+    .fillna({"Deaths": 0})
+)
+
+lx_clipped = dep_test_normal["lx_nat"].clip(eps, 1 - eps)
+dep_test_normal["lx_dep"] = 1 / (1 + np.exp(-(dep_test_normal["alpha"] + dep_test_normal["beta"] * np.log(lx_clipped / (1 - lx_clipped)))))
+dep_test_normal.loc[dep_test_normal["Age"] == 20, "lx_dep"] = 1.0
+dep_test_normal = dep_test_normal.sort_values(["Departement", "Year", "Week", "Age"])
+dep_test_normal["lx_next"] = dep_test_normal.groupby(["Departement", "Year", "Week"])["lx_dep"].shift(-1)
+dep_test_normal["qx_dep"] = 1 - dep_test_normal["lx_next"] / dep_test_normal["lx_dep"]
+dep_test_normal["Expected_brass_normal"] = dep_test_normal["Population"] * dep_test_normal["qx_dep"]
+
+nat_test_normal = nat_test_normal[["Year", "Week", "Age", "Population", "Deaths", "Expected_national_normal"]]
+dep_test_normal = dep_test_normal[["Year", "Week", "Age", "Departement", "Population", "Deaths", "Expected_brass_normal"]]
+
+nat_test = nat_test.merge(nat_test_normal, on=["Year", "Week", "Age", "Population", "Deaths"])
+dep_test = dep_test.merge(dep_test_normal, on=["Year", "Week", "Age", "Departement", "Population", "Deaths"])
+
+# 7. Filter to evaluation ages (20-85) and save predictions
 nat_predictions = nat_test[nat_test["Age"].isin(training_ages[:-1])].copy()
 brass_predictions = dep_test[dep_test["Age"].isin(training_ages[:-1])].copy()
 
