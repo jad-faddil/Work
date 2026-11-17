@@ -1,4 +1,5 @@
 __pycache__/
+.DS_Store
 Documentation
 R-4.6.1
 Useless

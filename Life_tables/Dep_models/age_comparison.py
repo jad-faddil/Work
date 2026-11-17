@@ -29,8 +29,8 @@ comp_age = comp_age.merge(nat_clean, on=["Year", "Week", "Age"], how="left")
 comp_age["Pred_Nat_Scaled"] = comp_age["Pred_Nat"] * (comp_age["Population"] / comp_age["Nat_Population"])
 
 # 2. Define Age Brackets
-bins = [19, 44, 64, 74, 80, 83]
-labels = ["20–44", "45–64", "65–74", "75–79", "80–83"]
+bins = [19, 44, 64, 74, 80, 86]
+labels = ["20–44", "45–64", "65–74", "75–79", "80–85"]
 comp_age["Age_Group"] = pd.cut(comp_age["Age"], bins=bins, labels=labels)
 
 

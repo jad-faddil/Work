@@ -7,7 +7,7 @@ training_years = range(2019, 2025)
 training_weeks = range(22, 37)
 training_ages = range(20, 86)
 test_years = [2025, 2026]
-weather_cols = ["TN", "TX", "UN", "UX"]
+weather_cols = ["TN", "TM", "TX", "UN", "UM", "UX"]
 diff_cols = [f"{c}_diff" for c in weather_cols]
 year_center = np.mean(list(training_years))
 model_years = [*training_years, *test_years]
@@ -31,7 +31,7 @@ data["Deaths"] = data["Deaths"].fillna(0)
 data["Population"] = data["Total"].round().astype(int)
 data = data[data["Population"] > 0].copy()
 
-formula = (f"Deaths ~ 0 + C(Age) + C(Week) + I(Year - {year_center:g}) + " + " + ".join(diff_cols))
+formula = f"Deaths ~ 0 + C(Age) + C(Week) + I(Year - {year_center:g}) + " + " + ".join(diff_cols)
 
 summary, weekly_results, age_results, coefficients = [], [], [], []
 
@@ -81,5 +81,5 @@ age_results.to_parquet("Life_tables/Life_tables_data/dep_glm_age_predictions.par
 
 weekly_results = pd.concat(weekly_results, ignore_index=True)
 weekly_results.to_parquet("Life_tables/Life_tables_data/dep_glm_predictions.parquet", index=False)
-print(weekly_results)
+
 print("Saved files")
