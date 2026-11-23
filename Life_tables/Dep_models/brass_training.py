@@ -5,15 +5,15 @@ import statsmodels.formula.api as smf
 
 base = "Life_tables/Life_tables_data/"
 training_years = range(2019, 2025)
-test_years = [2025, 2026]
+test_years = range(2025, 2027)
 training_ages = range(20,87)
 model_years = [*training_years, *test_years]
 training_weeks = range(22, 37)
 
-weather_cols = ["TN", "TM", "TX", "UN", "UM", "UX"]
+weather_cols = ["TX", "TN", "UX", "UN"]
 diff_cols = [f"{c}_diff" for c in weather_cols]
 year_center = np.mean(list(training_years))
-eps = 1e-8
+eps = 0
 
 # 1. Load and clean raw data
 pop_nat = pd.read_parquet(base + "weekly_population_all.parquet")
