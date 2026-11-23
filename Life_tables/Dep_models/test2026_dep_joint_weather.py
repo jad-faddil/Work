@@ -50,13 +50,17 @@ deaths = deaths[deaths["Year"].isin(model_years) & deaths["Week"].isin(training_
 deaths = deaths.groupby(["Year", "Week", "Age", "Departement"], as_index=False)["Deaths"].sum()
 weather = weather[weather["Year"].isin(model_years) & weather["Week"].isin(training_weeks)]
 weather = weather.groupby(["Departement", "Year", "Week"], as_index=False)[weather_cols].mean()
-train_w_mask = weather["Year"].isin(training_years) & weather["Week"].isin(training_weeks)
+weather = weather.sort_values(["Departement", "Year", "Week"]).reset_index(drop=True)
 
+train_w_mask = weather["Year"].isin(training_years) & weather["Week"].isin(training_weeks)
 tx_thresh = weather.loc[train_w_mask].groupby("Departement")["TX"].quantile(0.90)
 tn_thresh = weather.loc[train_w_mask].groupby("Departement")["TN"].quantile(0.90)
 
 weather["TX_excess"] = (weather["TX"] - weather["Departement"].map(tx_thresh)).clip(lower=0)
 weather["TN_excess"] = (weather["TN"] - weather["Departement"].map(tn_thresh)).clip(lower=0)
+
+weather["TX_excess_lag1"] = weather.groupby("Departement")["TX_excess"].shift(1).fillna(0.0)
+weather["TN_excess_lag1"] = weather.groupby("Departement")["TN_excess"].shift(1).fillna(0.0)
 
 data = population.merge(deaths, on=["Year", "Week", "Age", "Departement"], how="left")
 data = data.merge(weather, on=["Departement", "Year", "Week"], how="left")
@@ -71,13 +75,13 @@ age_bins = [*range(20, 65, 5), *range(65, 87, 3)]
 age_labels = [f"{a}-{b - 1}" for a, b in zip(age_bins[:-1], age_bins[1:])]
 
 data["Age_group"] = pd.cut(data["Age"], bins=age_bins, labels=age_labels, right=False,)
-passthrough_cols = ["geo_insee", "IRA_excess_lag1", "TX_excess", "TN_excess", *weather_cols, *(c for c in diff_cols if c in data.columns)]
+passthrough_cols = ["geo_insee", "IRA_excess_lag1", "TX_excess", "TN_excess", "TX_excess_lag1", "TN_excess_lag1", *weather_cols, *(c for c in diff_cols if c in data.columns)]
 data = (data.groupby(["Departement", "Year", "Week", "Age_group"], as_index=False, observed=True).agg(
     Deaths=("Deaths", "sum"), Population=("Population", "sum"), **{col: (col, "first") for col in passthrough_cols}))
 
-#data["IRA_excess_lag1"] = np.where(data["Year"] < 2020, 0.0, data["IRA_excess_lag1"])
+data["IRA_excess_lag1"] = np.where(data["Year"] < 2020, 0.0, data["IRA_excess_lag1"])
 
-formula = f"Deaths ~ 0 + C(Age_group) + C(Week) + I(Year - {year_center:g}) + " + " + ".join(diff_cols) + " + IRA_excess_lag1 + TX_diff:Age_group + TX_excess + TN_excess "
+formula = f"Deaths ~ 0 + C(Age_group) + C(Week) + I(Year - {year_center:g}) + " + " + ".join(diff_cols) + " + IRA_excess_lag1 + TX_diff:Age_group + TX_excess + TN_excess + TX_excess_lag1 + TN_excess_lag1"
 
 summary, weekly_results, age_results, coefficients = [], [], [], []
 
