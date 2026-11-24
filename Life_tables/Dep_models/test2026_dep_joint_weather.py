@@ -3,14 +3,15 @@ import pandas as pd
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
-training_years = range(2020, 2025)
+training_years = range(1994, 2004)
 training_weeks = range(22, 37)
 training_ages = range(20, 86)
-test_years = range(2025, 2027)
-weather_cols = ["TX", "TN", "UN", "UM", "UX"]
+test_years = range(2026, 2027)
+weather_cols = ["TX", "TN"]
 diff_cols = [f"{c}_diff" for c in weather_cols]
 year_center = np.mean(list(training_years))
 model_years = [*training_years, *test_years]
+
 REG_TO_DEPS = {
     "11": ["75", "77", "78", "91", "92", "93", "94", "95"],  # Île-de-France
     "24": ["18", "28", "36", "37", "41", "45"],  # Centre-Val de Loire
@@ -81,7 +82,7 @@ data = (data.groupby(["Departement", "Year", "Week", "Age_group"], as_index=Fals
 
 data["IRA_excess_lag1"] = np.where(data["Year"] < 2020, 0.0, data["IRA_excess_lag1"])
 
-formula = f"Deaths ~ 0 + C(Age_group) + C(Week) + I(Year - {year_center:g}) + " + " + ".join(diff_cols) + " + IRA_excess_lag1 + TX_diff:Age_group + TX_excess + TN_excess + TX_excess_lag1 + TN_excess_lag1"
+formula = f"Deaths ~ 0 + C(Age_group) + C(Week) + I(Year - {year_center:g}) + TX_diff:Age_group + TX_excess + TN_excess + TX_excess_lag1 + TN_excess_lag1 + " + " + ".join(diff_cols)
 
 summary, weekly_results, age_results, coefficients = [], [], [], []
 
